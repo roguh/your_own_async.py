@@ -8,26 +8,32 @@ import heapq
 import time
 
 
-class Scheduler:
+class Scheduler3:
     def __init__(self):
         self.ready = deque()  # functions to execute
         self.sleeping = []
+        self.sequence = 0  # tie-break functions with same deadline
 
     def call_soon(self, func):
         self.ready.append(func)
 
     def call_later(self, delay: float, func):
         # All async frameworks need a way to delay function calls
+
+        self.sequence += 1
         deadline = time.time() + delay
         # heap implementation of a priority queue
         # much more efficient than sorting a list every time
-        heapq.heappush(self.sleeping, (deadline, func))
+        heapq.heappush(self.sleeping, (deadline, self.sequence, func))
+
+        # POTENTIAL BUG: what if both functions have exactly the same deadline?
+        ## heapq.heappush(self.sleeping, (deadline, func))
 
     def run(self):
         while self.ready or self.sleeping:
             if not self.ready:
                 # sleep until nearest deadline
-                deadline, func = heapq.heappop(self.sleeping)
+                deadline, _, func = heapq.heappop(self.sleeping)
                 delta = deadline - time.time()
                 if delta > 0:
                     time.sleep(delta)
@@ -38,7 +44,7 @@ class Scheduler:
 
 
 # Very strange code, all async scheduling internals visible
-sched = Scheduler()
+sched = Scheduler3()
 
 
 def countdown(n):
