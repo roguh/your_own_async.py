@@ -5,7 +5,7 @@ import time
 from collections import deque
 
 
-class Scheduler:
+class Scheduler6:
     def __init__(self):
         self.ready = deque()
         self.current = None
@@ -26,7 +26,7 @@ class Scheduler:
                 pass
 
 
-sched = Scheduler()
+sched = Scheduler6()
 
 
 def countdown(n: int) -> None:
