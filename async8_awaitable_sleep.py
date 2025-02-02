@@ -4,19 +4,36 @@
 #
 # we now have a custom Python async scheduler implemented with Python Python generators!
 import time
+import heapq
 from collections import deque
 
 
-class Scheduler7:
+class Scheduler8:
     def __init__(self):
         self.ready = deque()
         self.current = None
+        self.sleeping = []
+        self.sequence = 0
 
-    def new_task(self, gen):
-        self.ready.append(gen)
+    def new_task(self, coro):
+        self.ready.append(coro)
+
+    async def sleep(self, delay):
+        # the current task wants to sleep, but how?
+        deadline = time.time() + delay
+        self.sequence += 1
+        heapq.heappush(self.sleeping, (deadline, self.sequence, self.current))
+        self.current = None  # disappear
+        await switch()  # go to next task
 
     def run(self):
-        while self.ready:
+        while self.ready or self.sleeping:
+            if not self.ready:
+                deadline, _, coro = heapq.heappop(self.sleeping)
+                delta = deadline - time.time()
+                if delta > 0:
+                    time.sleep(delta)
+                self.ready.append(coro)
             # run next task, which is a generator
             self.current = self.ready.popleft()
             try:
@@ -30,7 +47,7 @@ class Scheduler7:
                 pass
 
 
-sched = Scheduler7()
+sched = Scheduler8()
 
 
 class Awaitable:
@@ -51,11 +68,8 @@ async def countdown(n: int) -> None:
     x = n
     while x >= 0:
         print("down", x)
-        time.sleep(1)
-        # before yield: step 1
-        # after yield: step 2
-        # while loop works normally!
-        await switch()
+        # Just like normal async code and very similar to the basic code!
+        await sched.sleep(4)
         x -= 1
 
 
@@ -63,11 +77,10 @@ async def countup(n: int) -> None:
     x = 0
     while x <= n:
         print("up", x)
-        time.sleep(1)
-        await switch()
+        await sched.sleep(1)
         x += 1
 
 
-sched.new_task(countdown(5))
-sched.new_task(countup(5))
+sched.new_task(countdown(3))
+sched.new_task(countup(12))
 sched.run()
